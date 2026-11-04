@@ -18,6 +18,7 @@ GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:ge
 
 class ChatRequest(BaseModel):
     message: str
+    history: list[dict] = []
     api_key: str | None = None
 
 class ChatResponse(BaseModel):
@@ -47,6 +48,8 @@ def index():
         .header { background: #0ea5e9; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { font-size: 1.15rem; font-weight: 600; color: #fff; }
         .header-controls { display: flex; align-items: center; gap: 0.5rem; }
+        .btn-clear { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; padding: 0.25rem 0.5rem; font-size: 0.75rem; cursor: pointer; }
+        .btn-clear:hover { background: rgba(255,255,255,0.25); }
         .status-badge { background: #10b981; color: white; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
         .key-input { padding: 0.25rem 0.5rem; border-radius: 4px; border: none; background: rgba(255,255,255,0.2); color: white; font-size: 0.75rem; outline: none; width: 130px; }
         .key-input::placeholder { color: rgba(255,255,255,0.7); }
@@ -67,6 +70,7 @@ def index():
         <div class="header">
             <h1>Gemini AI Chatbot</h1>
             <div class="header-controls">
+                <button onclick="clearChat()" class="btn-clear" title="Clear Chat Memory">Clear</button>
                 <input type="password" id="api-key-input" class="key-input" placeholder="API Key (optional)" title="Optional: Set Gemini API Key" />
                 <span class="status-badge" id="health-status">Checking...</span>
             </div>
@@ -82,6 +86,8 @@ def index():
     </div>
 
     <script>
+        let conversationHistory = [];
+
         const keyInput = document.getElementById('api-key-input');
         if (localStorage.getItem('gemini_api_key')) {
             keyInput.value = localStorage.getItem('gemini_api_key');
@@ -89,6 +95,12 @@ def index():
         keyInput.addEventListener('change', () => {
             localStorage.setItem('gemini_api_key', keyInput.value.trim());
         });
+
+        function clearChat() {
+            conversationHistory = [];
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML = '<div class="msg bot-msg">Conversation history cleared! How can I help you?</div>';
+        }
 
         fetch('/health')
             .then(res => res.json())
@@ -129,10 +141,21 @@ def index():
                 const res = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: message, api_key: clientApiKey })
+                    body: JSON.stringify({
+                        message: message,
+                        history: conversationHistory,
+                        api_key: clientApiKey
+                    })
                 });
                 const data = await res.json();
-                loadingDiv.innerText = data.reply || (data.detail ? `Error: ${data.detail}` : 'No response');
+                const replyText = data.reply || (data.detail ? `Error: ${data.detail}` : 'No response');
+                loadingDiv.innerText = replyText;
+
+                // Save to conversation memory if successful
+                if (data.reply && !data.reply.startsWith('[Notice]')) {
+                    conversationHistory.push({ role: 'user', text: message });
+                    conversationHistory.push({ role: 'model', text: data.reply });
+                }
             } catch (err) {
                 loadingDiv.innerText = 'Failed to connect to backend service.';
             }
@@ -159,14 +182,52 @@ def chat(request: ChatRequest):
             model="mock/unconfigured"
         )
 
-    model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
     endpoint = GEMINI_URL.format(model=model) + f"?key={api_key}"
+
+    # Build multi-turn conversation contents for Gemini API
+    raw_contents = []
+    for item in request.history:
+        role = item.get("role", "user")
+        if role not in ["user", "model"]:
+            role = "user" if role in ["user", "human"] else "model"
+
+        text = ""
+        if "parts" in item and isinstance(item["parts"], list) and item["parts"]:
+            text = item["parts"][0].get("text", "")
+        else:
+            text = item.get("text") or item.get("content") or ""
+
+        text = text.strip()
+        if text:
+            raw_contents.append({
+                "role": role,
+                "parts": [{"text": text}]
+            })
+
+    # Ensure conversation starts with user turn
+    while raw_contents and raw_contents[0]["role"] != "user":
+        raw_contents.pop(0)
+
+    # Merge consecutive identical roles to adhere to Gemini API schema
+    contents = []
+    for item in raw_contents:
+        if contents and contents[-1]["role"] == item["role"]:
+            contents[-1]["parts"].append(item["parts"][0])
+        else:
+            contents.append(item)
+
+    # Append current user message
+    if contents and contents[-1]["role"] == "user":
+        contents[-1]["parts"].append({"text": request.message.strip()})
+    else:
+        contents.append({
+            "role": "user",
+            "parts": [{"text": request.message.strip()}]
+        })
+
     payload = {
-        "contents": [
-            {
-                "parts": [{"text": request.message}]
-            }
-        ]
+        "contents": contents
     }
 
     try:
@@ -179,9 +240,9 @@ def chat(request: ChatRequest):
             parts = candidates[0].get("content", {}).get("parts", [])
             if parts:
                 text = parts[0].get("text", "")
-                return ChatResponse(reply=text.strip(), model=GEMINI_MODEL)
+                return ChatResponse(reply=text.strip(), model=model)
                 
-        return ChatResponse(reply="No response generated from Gemini API.", model=GEMINI_MODEL)
+        return ChatResponse(reply="No response generated from Gemini API.", model=model)
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=502, detail=f"Gemini API request failed: {str(e)}")
 
