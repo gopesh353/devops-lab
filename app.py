@@ -10,7 +10,21 @@ try:
 except ImportError:
     pass
 
+try:
+    from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
+    REQUESTS_TOTAL = Counter('http_requests_total', 'Total HTTP requests', ['endpoint'])
+    HAS_PROMETHEUS = True
+except ImportError:
+    HAS_PROMETHEUS = False
+
 app = FastAPI(title="Gemini AI Chatbot", version="1.0.0")
+
+# In-Memory Feature Flags (Question 6)
+FEATURE_FLAGS = {
+    "dark_mode": True,
+    "beta_summarizer": False,
+    "advanced_memory": True
+}
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
@@ -27,11 +41,34 @@ class ChatResponse(BaseModel):
 
 @app.get("/health")
 def health_check():
+    if HAS_PROMETHEUS:
+        REQUESTS_TOTAL.labels(endpoint="/health").inc()
     return {
         "status": "healthy",
         "service": "fastapi-gemini-chatbot",
         "version": "1.0.0"
     }
+
+@app.get("/metrics")
+def get_metrics():
+    """Prometheus Scrape Endpoint (Question 3)"""
+    if HAS_PROMETHEUS:
+        from fastapi.responses import Response
+        return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+    return {"status": "ok", "message": "prometheus_client not available"}
+
+@app.get("/api/features")
+def get_features():
+    """Feature Flags Status Endpoint (Question 6)"""
+    return FEATURE_FLAGS
+
+@app.post("/api/features/{feature_name}/toggle")
+def toggle_feature(feature_name: str):
+    """Toggle a Feature Flag (Question 6)"""
+    if feature_name in FEATURE_FLAGS:
+        FEATURE_FLAGS[feature_name] = not FEATURE_FLAGS[feature_name]
+        return {"feature": feature_name, "enabled": FEATURE_FLAGS[feature_name]}
+    raise HTTPException(status_code=404, detail=f"Feature '{feature_name}' not found")
 
 @app.get("/", response_class=HTMLResponse)
 def index():

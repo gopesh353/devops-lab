@@ -1,0 +1,31 @@
+---
+- name: Automate Infrastructure & Application Configuration
+  hosts: local
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: 1. Ensure required application directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /tmp/devops_app_logs
+        - /tmp/devops_backups
+
+    - name: 2. Check if application environment configuration exists
+      stat:
+        path: .env.example
+      register: env_status
+
+    - name: 3. Verify target node Python runtime
+      command: python3 --version
+      register: python_info
+
+    - name: 4. Display automation status and node configuration
+      debug:
+        msg:
+          - "Status: SUCCESS - Target node configured"
+          - "Runtime: {{ python_info.stdout }}"
+          - "Config Template Ready: {{ env_status.stat.exists }}"
