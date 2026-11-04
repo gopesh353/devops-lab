@@ -48,3 +48,7 @@ logs/
 *.pid
 .server.pid
 test-results.xml
+
+# Kubernetes Secrets
+k8s/secret.yaml
+!k8s/secret.yaml.example

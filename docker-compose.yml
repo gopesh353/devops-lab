@@ -1,0 +1,34 @@
+services:
+  chatbot:
+    build: .
+    container_name: chatbot-app
+    image: devops-chatbot:v1
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Named Volume Demonstration (Permanent Storage)
+      - chatbot-data:/app/data
+      # Bind Mount Demonstration (Host to Container Mount)
+      - ./logs:/app/logs
+    networks:
+      - chatbot-net
+    restart: unless-stopped
+
+  client:
+    image: curlimages/curl:latest
+    container_name: chatbot-client
+    command: ["sh", "-c", "while true; do sleep 3600; done"]
+    networks:
+      - chatbot-net
+    depends_on:
+      - chatbot
+
+networks:
+  chatbot-net:
+    driver: bridge
+
+volumes:
+  chatbot-data:
+    driver: local
