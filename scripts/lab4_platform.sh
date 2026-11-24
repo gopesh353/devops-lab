@@ -80,23 +80,37 @@ install_prometheus() {
 }
 
 start_git_mirror() {
-    log "Starting the local HTTP Git mirror on port 9418..."
+    log "Publishing this repository over a local Git smart-HTTP mirror..."
     local mirror="/tmp/opencode/devops-lab.git"
-    mkdir -p /tmp/opencode
+    local branch
+    branch=$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD)
+    mkdir -p /tmp/opencode/cgi-bin
+
+    # git http-backend gives Argo CD the smart protocol (go-git needs it for
+    # shallow clones); a plain file server only speaks the dumb protocol.
+    cat > /tmp/opencode/cgi-bin/git-http-backend <<'EOF'
+#!/bin/sh
+export GIT_PROJECT_ROOT=/tmp/opencode
+export GIT_HTTP_EXPORT_ALL=1
+exec git http-backend
+EOF
+    chmod +x /tmp/opencode/cgi-bin/git-http-backend
+
     if [ ! -d "$mirror" ]; then
         git clone --bare "$ROOT_DIR" "$mirror" >/dev/null 2>&1
-    else
-        git -C "$ROOT_DIR" push "$mirror" main --force >/dev/null 2>&1 || true
     fi
+    git -C "$ROOT_DIR" push "$mirror" "$branch:main" --force >/dev/null
+    git -C "$mirror" symbolic-ref HEAD refs/heads/main
     git -C "$mirror" update-server-info
 
-    if ! ss -ltn 2>/dev/null | grep -q ':9418 '; then
-        (cd /tmp/opencode && nohup python3 -m http.server 9418 --bind 0.0.0.0 \
-            > /tmp/opencode/git-http.log 2>&1 &)
-    fi
+    pkill -f "http.server 9418" >/dev/null 2>&1 || true
     sleep 1
-    git ls-remote "http://127.0.0.1:9418/devops-lab.git" >/dev/null
-    log "Git mirror ready: http://host.minikube.internal:9418/devops-lab.git"
+    (cd /tmp/opencode && nohup python3 -m http.server 9418 --cgi --bind 0.0.0.0 \
+        --directory /tmp/opencode > /tmp/opencode/git-http.log 2>&1 &)
+    sleep 1
+    git ls-remote \
+        "http://127.0.0.1:9418/cgi-bin/git-http-backend/devops-lab.git" >/dev/null
+    log "Git mirror ready: http://host.minikube.internal:9418/cgi-bin/git-http-backend/devops-lab.git"
 }
 
 case "${1:-all}" in

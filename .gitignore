@@ -29,10 +29,6 @@ host_storage/
 log.json
 
 # Lab 4 runtime artifacts (never commit these)
-.vault-init.json
-vault/data/
-.moto-venv/
-velero/credentials-velero
 backups/
 dr-artifacts/
 unit-results.xml

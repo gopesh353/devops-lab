@@ -82,7 +82,7 @@ import urllib.request
 
 token = os.environ["VAULT_TOKEN"]
 request = urllib.request.Request(
-    "http://127.0.0.1:8200/v1/secret/data/chatbot",
+    "http://127.0.0.1:8201/v1/secret/data/chatbot",
     headers={"X-Vault-Token": token},
 )
 with urllib.request.urlopen(request, timeout=5) as response:

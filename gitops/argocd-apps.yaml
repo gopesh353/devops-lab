@@ -13,7 +13,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: http://host.minikube.internal:9418/devops-lab.git
+    repoURL: http://host.minikube.internal:9418/cgi-bin/git-http-backend/devops-lab.git
     targetRevision: main
     path: k8s/gitops/bluegreen
   destination:
@@ -34,7 +34,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: http://host.minikube.internal:9418/devops-lab.git
+    repoURL: http://host.minikube.internal:9418/cgi-bin/git-http-backend/devops-lab.git
     targetRevision: main
     path: k8s/gitops/canary
   destination:

@@ -55,6 +55,12 @@ drill() {
 
     log "Restoring the manifest into $DR_NAMESPACE..."
     kubectl create namespace "$DR_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+
+    # The API key lives in Vault, not in the backup, so recovery includes a
+    # fresh sync before the workload starts.
+    log "Recreating the API key from Vault in $DR_NAMESPACE..."
+    scripts/lab4_secrets.sh sync
+
     python3 - "$backup_file" "$DR_NAMESPACE" > /tmp/opencode/chatbot-dr.yaml <<'PY'
 import sys
 source, namespace = sys.argv[1], sys.argv[2]
@@ -67,9 +73,6 @@ for document in documents:
 print("\n---\n".join(kept))
 PY
     kubectl apply -f /tmp/opencode/chatbot-dr.yaml
-
-    log "Recreating the API key from Vault in $DR_NAMESPACE..."
-    scripts/lab4_secrets.sh sync
 
     log "Waiting for the restored Rollout to become healthy..."
     kubectl argo rollouts status chatbot -n "$DR_NAMESPACE" --timeout 5m
@@ -101,6 +104,12 @@ failback() {
     kubectl apply -f gitops/argocd-apps.yaml >/dev/null
     kubectl patch application chatbot-bluegreen -n argocd --type merge \
         -p '{"operation":{"sync":{}}}' >/dev/null 2>&1 || true
+
+    for _ in $(seq 1 30); do
+        if kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then break; fi
+        sleep 2
+    done
+    scripts/lab4_secrets.sh sync
 
     for _ in $(seq 1 60); do
         sync=$(kubectl get application chatbot-bluegreen -n argocd \
