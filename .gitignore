@@ -28,6 +28,10 @@ host_storage/
 .server.pid
 log.json
 
+# Lab 4 submission docs (kept local, not part of the repository)
+LAB4_REPORT.md
+LAB4_GUIDE.md
+
 # Lab 4 runtime artifacts (never commit these)
 backups/
 dr-artifacts/
@@ -61,3 +65,6 @@ terraform/instances/
 *.swo
 .DS_Store
 Thumbs.db
+
+# Lab 4 submission PDFs (local only)
+submission/

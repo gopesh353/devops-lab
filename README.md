@@ -1,63 +1,75 @@
-# DevOps Engineering Laboratory: End-to-End CI/CD, Containerization & DevSecOps
+# DevOps Engineering Laboratory : End-to-End CI/CD, Containerization & DevSecOps - Labs 1-4 (All done here)
 
 A production-grade, reproducible DevOps lab repository featuring an **AI-powered FastAPI Chatbot** integrated with the **Google Gemini REST API** (via pure HTTP requests), orchestrated across a complete continuous integration, containerization, Kubernetes orchestration, observability, and DevSecOps lifecycle.
 
 ## Author & Academic Information
+
 - **Student Name:** Gopesh Aggarwal
 - **Roll No.-** 2301730158
-- **Email:** gopeshaggarwal18@gmail.com
-- **Curriculum:** DevOps and Automation Lab (Labs 1, 2, and 3)
+- **Email:** [gopeshaggarwal18@gmail.com](mailto:gopeshaggarwal18@gmail.com)
+- **Curriculum:** DevOps and Automation Lab (Labs 1–4)
 - **License:** Open Source (MIT)
 
 ## Prerequisites & System Requirements
 
 ### Recommened Operating Systems
+
 - **Fedora Linux** (tested on Fedora 44)
 - **Ubuntu Linux** (22.04 LTS / 24.04 LTS)
 
 ### Required Software Packages
-| Tool | Purpose | Verification Command |
-|---|---|---|
-| **Git** | Source Code Management | `git --version` |
-| **Python 3.11+** | Application Runtime & Testing | `python3 --version` |
-| **Docker Engine** | Containerization & Compose | `docker --version` |
-| **Jenkins** | Continuous Integration & Deployment | `systemctl status jenkins` |
-| **kubectl** | Kubernetes CLI Client | `kubectl version --client` |
-| **Minikube** | Local Kubernetes Cluster | `minikube version` |
-| **Ansible** | Infrastructure Configuration Management | `ansible --version` |
-| **Terraform** | Infrastructure as Code (IaC) | `terraform version` |
+
+
+| Tool              | Purpose                                 | Verification Command       |
+| ----------------- | --------------------------------------- | -------------------------- |
+| **Git**           | Source Code Management                  | `git --version`            |
+| **Python 3.11+**  | Application Runtime & Testing           | `python3 --version`        |
+| **Docker Engine** | Containerization & Compose              | `docker --version`         |
+| **Jenkins**       | Continuous Integration & Deployment     | `systemctl status jenkins` |
+| **kubectl**       | Kubernetes CLI Client                   | `kubectl version --client` |
+| **Minikube**      | Local Kubernetes Cluster                | `minikube version`         |
+| **Ansible**       | Infrastructure Configuration Management | `ansible --version`        |
+| **Terraform**     | Infrastructure as Code (IaC)            | `terraform version`        |
+
 
 ---
 
 ## Lab Reports & Screenshot Documentation
 
 > [!IMPORTANT]
-> Complete execution evidence, terminal command outputs, configuration files, and corresponding **visual screenshots for each lab** (Lab 1, Lab 2, and Lab 3) are compiled and organized into the respective **lab-wise submission PDF reports**. Refer to these PDF files for step-by-step visual verification of every experiment.
+> Complete execution evidence, terminal command outputs, configuration files, and corresponding **visual screenshots for each lab** (Lab 1, Lab 2, Lab 3, and Lab 4) are compiled and organized into the respective **lab-wise submission PDF reports**. Refer to these PDF files for step-by-step visual verification of every experiment.
 
 ---
 
 ## Quickstart Guide
 
 ### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/gopesh353/devops-lab.git
 cd devops-lab
 ```
 
 ### 2. Setup Application Environment & Secrets
+
 Create your local environment file from the provided template:
+
 ```bash
 cp .env.example .env
 ```
+
 Edit `.env` and set your Google Gemini API Key:
+
 ```ini
 GEMINI_API_KEY="your_actual_gemini_api_key_here"
 GEMINI_MODEL="gemini-3.5-flash-lite"
 APP_PORT=8000
 ```
+
 *(Note: `.env` is strictly ignored by `.gitignore` to prevent credential leaks).*
 
 ### 3. Setup Python Virtual Environment & Dependencies
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -65,6 +77,7 @@ pip install -r requirements.txt
 ```
 
 ### 4. Run & Test the Application Locally
+
 ```bash
 # Start the application using automated deployment script
 bash deploy.sh
@@ -126,6 +139,7 @@ python test_app.py
 **Objective:** Build a foundational Git-based CI/CD pipeline automating application builds, zero-downtime deployment, and test reporting.
 
 #### Key Highlights & Implemented Features:
+
 1. **Application Architecture (`app.py`):**
    - High-performance FastAPI application serving an interactive glassmorphic chat interface.
    - Direct HTTP communication with Google Gemini REST API (`generateContent`) without heavyweight external SDKs.
@@ -154,6 +168,7 @@ python test_app.py
 **Objective:** Containerize the application using Docker, manage multi-container networks and persistent storage, and orchestrate deployment on a Kubernetes (Minikube) cluster with zero-downtime rolling updates.
 
 #### Key Highlights & Implemented Features:
+
 1. **Containerization (`Dockerfile` & `.dockerignore`):**
    - Built on `python:3.11-slim` with layer caching (installing `requirements.txt` before copying code).
    - Built-in container healthcheck via Python urllib.
@@ -182,6 +197,7 @@ python test_app.py
 **Objective:** Implement full-stack observability, centralized logging, automated infrastructure provisioning, security scanning, and release quality engineering.
 
 #### Key Highlights & Implemented Features:
+
 1. **Infrastructure Automation (Ansible):**
    - `ansible/playbook.yml` automated directory provisioning, configuration checks, and runtime environment verification across target nodes with zero failed tasks.
 2. **Infrastructure as Code (Terraform):**
@@ -200,6 +216,36 @@ python test_app.py
    - **Feature Flags:** In-memory runtime flags (`/api/features`) allowing dynamic toggle of features (e.g., `beta_summarizer`) without server restart.
    - **Concurrency Load Testing (`scripts/load_test.py`):** Multi-threaded benchmark testing `/health` with 100 requests across 10 workers to measure req/s throughput.
    - **Automated Browser UI Testing (`scripts/test_selenium.py`):** Verified essential frontend DOM elements (input, chat box, action handlers).
+
+---
+
+### Lab 4: Advanced Deployment Strategies & Enterprise DevOps
+
+**Objective:** Replace manual releases with controlled, observable deployment strategies: automated test gates, blue-green and canary releases, GitOps reconciliation, centralized secrets, and a measured disaster-recovery drill.
+
+#### Key Highlights & Implemented Features:
+
+1. **Versioned Release Artifact:**
+   - `APP_VERSION` build argument produces `devops-chatbot:v1` and `:v2` from one codebase.
+   - Every response carries `X-App-Version`; `/health` returns version and pod hostname for traffic proof.
+2. **Automated Test Gate (`Jenkinsfile`):**
+   - Install → Unit Tests (`tests/test_unit.py`, 8 tests) → Integration Tests (`tests/test_integration.py`, 5 tests) → optional Vault check.
+   - A deployable artifact is only produced after the tests pass; `FAIL_DEMO=1` demonstrates a blocked release.
+3. **Blue-Green Deployment (Argo Rollouts):**
+   - `chatbot-active` (NodePort 30090) and `chatbot-preview` Services; manual promotion (`autoPromotionEnabled: false`).
+   - Promotion probe: 148 requests, 0 failures, both v1 and v2 observed during the switch.
+4. **Canary with Metric Analysis:**
+   - Steps 10% → 25% → 50% → 100% with a Prometheus `AnalysisTemplate` (success rate ≥ 95%).
+   - Measured splits matched the configured weights (11.5% and 52.5% in 200-request samples); `kubectl argo rollouts abort` returns traffic to stable immediately.
+5. **GitOps with Argo CD:**
+   - Two Applications (`chatbot-bluegreen`, `chatbot-canary`) sync from Git; no manual `kubectl apply` for releases.
+   - Automated sync/prune/self-heal; a local Git smart-HTTP mirror stands in for GitHub because pushes were prohibited.
+6. **Secret Management with Vault:**
+   - API key stored in Vault KV v2 (`secret/chatbot`), synced to the `chatbot-secret` Kubernetes Secret; value is never printed or committed.
+   - Jenkins uses a masked `vault-token` credential and has no Docker or Kubernetes permissions.
+7. **Disaster Recovery with Measured RTO/RPO:**
+   - `scripts/lab4_dr.sh` backs up the release manifest, deletes the namespace, restores into `chatbot-dr`, resyncs the secret from Vault, and fails back.
+   - Drill result: **RTO 19 s**, **RPO 60 s**, service healthy on the same NodePort after restore.
 
 ---
 
@@ -225,7 +271,19 @@ devops-lab/
 │   ├── service.yaml            # K8s NodePort Service (Port 30080 -> 8000)
 │   ├── configmap.yaml          # K8s ConfigMap (App configurations)
 │   ├── secret.yaml             # K8s Secret (Ignored by Git)
-│   └── secret.yaml.example     # Safe Secret template
+│   ├── secret.yaml.example     # Safe Secret template
+│   ├── gitops/
+│   │   ├── bluegreen/all.yaml  # Blue-green Rollout, active/preview Services
+│   │   └── canary/all.yaml     # Canary Rollout, Ingress, AnalysisTemplate
+│   └── platform/
+│       └── prometheus.yaml     # In-cluster Prometheus scrape config
+│
+├── gitops/
+│   └── argocd-apps.yaml        # Argo CD Applications (GitOps source of truth)
+│
+├── tests/
+│   ├── test_unit.py            # Mocked unit tests (CI gate)
+│   └── test_integration.py     # Live-server integration tests (CI gate)
 │
 ├── ansible/                    # Configuration Management
 │   ├── inventory.ini           # Ansible target host inventory
@@ -239,7 +297,14 @@ devops-lab/
 │
 └── scripts/                    # Testing & Automation Utilities
     ├── load_test.py            # Concurrent load testing benchmark suite
-    └── test_selenium.py        # Automated browser DOM validation suite
+    ├── test_selenium.py        # Automated browser DOM validation suite
+    ├── lab4_platform.sh        # Minikube, Argo CD/Rollouts, Prometheus, Git mirror bootstrap
+    ├── lab4_build.sh           # Build and load the v1/v2 images
+    ├── lab4_bluegreen.sh       # Preview, promote, rollback, zero-downtime probe
+    ├── lab4_canary.sh          # Canary load, traffic sampling, promote/abort
+    ├── lab4_dr.sh              # Backup, disaster drill (RTO/RPO), failback
+    ├── lab4_secrets.sh         # Vault write and Kubernetes secret sync
+    └── lab4_traffic.py         # Version-aware traffic probe/sampler
 ```
 
 ---
@@ -247,12 +312,14 @@ devops-lab/
 ## Command Quick Reference
 
 ### Run Application & Tests
+
 ```bash
 bash deploy.sh              # Start / restart application
 python test_app.py          # Run test suite
 ```
 
 ### Docker
+
 ```bash
 docker build -t devops-chatbot:v1 .                      # Build container
 docker run -d -p 8000:8000 --env-file .env devops-chatbot:v1 # Run container
@@ -260,6 +327,7 @@ docker compose up -d                                      # Multi-container setu
 ```
 
 ### Kubernetes (Minikube)
+
 ```bash
 minikube start --driver=docker                            # Start cluster
 minikube image load devops-chatbot:v1                     # Load image
@@ -267,7 +335,23 @@ bash deploy_k8s.sh                                        # Automated deploy
 kubectl get pods,svc -l app=gemini-chatbot               # Inspect resources
 ```
 
+### Lab 4: Advanced Deployments & DR
+
+```bash
+bash scripts/lab4_platform.sh                 # Minikube + Argo CD/Rollouts + Prometheus + Git mirror
+bash scripts/lab4_build.sh                    # Build/load devops-chatbot v1 and v2
+kubectl apply -f gitops/argocd-apps.yaml      # Register GitOps Applications
+bash scripts/lab4_secrets.sh start            # Vault -> Kubernetes secret
+bash scripts/lab4_bluegreen.sh promote        # Blue-green promote with zero-downtime probe
+bash scripts/lab4_canary.sh load-start 600    # Canary ingress traffic
+bash scripts/lab4_canary.sh sample 200        # Verify the traffic split
+bash scripts/lab4_dr.sh backup                # Backup manifest
+bash scripts/lab4_dr.sh drill                 # Delete namespace, restore, report RTO/RPO
+bash scripts/lab4_dr.sh failback              # Return to the primary namespace
+```
+
 ### Monitoring & Security
+
 ```bash
 # Prometheus & Grafana
 docker run -d --name prometheus -p 9090:9090 -v $(pwd)/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
