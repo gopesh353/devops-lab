@@ -28,6 +28,16 @@ host_storage/
 .server.pid
 log.json
 
+# Lab 4 runtime artifacts (never commit these)
+.vault-init.json
+vault/data/
+.moto-venv/
+velero/credentials-velero
+backups/
+dr-artifacts/
+unit-results.xml
+integration-results.xml
+
 # Testing, Coverage & CI Reports
 .pytest_cache/
 .coverage

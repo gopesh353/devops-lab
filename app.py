@@ -1,4 +1,5 @@
 import os
+import socket
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
@@ -12,12 +13,32 @@ except ImportError:
 
 try:
     from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
-    REQUESTS_TOTAL = Counter('http_requests_total', 'Total HTTP requests', ['endpoint'])
+    REQUESTS_TOTAL = Counter(
+        'http_requests_total',
+        'Total HTTP requests',
+        ['endpoint', 'status', 'version']
+    )
     HAS_PROMETHEUS = True
 except ImportError:
     HAS_PROMETHEUS = False
 
-app = FastAPI(title="Gemini AI Chatbot", version="1.0.0")
+APP_VERSION = os.getenv("APP_VERSION", "1.0.0")
+
+app = FastAPI(title="Gemini AI Chatbot", version=APP_VERSION)
+
+
+@app.middleware("http")
+async def observability_middleware(request, call_next):
+    """Attach a version header and count every request for canary analysis."""
+    response = await call_next(request)
+    response.headers["X-App-Version"] = APP_VERSION
+    if HAS_PROMETHEUS and request.url.path != "/metrics":
+        REQUESTS_TOTAL.labels(
+            endpoint=request.url.path,
+            status=str(response.status_code),
+            version=APP_VERSION
+        ).inc()
+    return response
 
 # In-Memory Feature Flags (Question 6)
 FEATURE_FLAGS = {
@@ -41,12 +62,11 @@ class ChatResponse(BaseModel):
 
 @app.get("/health")
 def health_check():
-    if HAS_PROMETHEUS:
-        REQUESTS_TOTAL.labels(endpoint="/health").inc()
     return {
         "status": "healthy",
         "service": "fastapi-gemini-chatbot",
-        "version": "1.0.0"
+        "version": APP_VERSION,
+        "hostname": socket.gethostname()
     }
 
 @app.get("/metrics")

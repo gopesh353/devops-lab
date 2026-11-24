@@ -1,0 +1,161 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chatbot-canary
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chatbot-config
+  namespace: chatbot-canary
+data:
+  GEMINI_MODEL: "gemini-3.5-flash-lite"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chatbot-stable
+  namespace: chatbot-canary
+  labels:
+    app: chatbot-canary
+spec:
+  selector:
+    app: chatbot-canary
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chatbot-canary
+  namespace: chatbot-canary
+  labels:
+    app: chatbot-canary
+spec:
+  selector:
+    app: chatbot-canary
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chatbot-canary-ingress
+  namespace: chatbot-canary
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: canary.127.0.0.1.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: chatbot-stable
+                port:
+                  number: 8000
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  namespace: chatbot-canary
+spec:
+  args:
+    - name: version
+  metrics:
+    - name: success-rate
+      interval: 15s
+      successCondition: result[0] >= 0.95
+      failureLimit: 8
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            sum(rate(http_requests_total{version="{{args.version}}",status=~"2.."}[1m]))
+            /
+            clamp_min(sum(rate(http_requests_total{version="{{args.version}}"}[1m])), 0.001)
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: chatbot
+  namespace: chatbot-canary
+  labels:
+    app: chatbot-canary
+spec:
+  replicas: 4
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: chatbot-canary
+  template:
+    metadata:
+      labels:
+        app: chatbot-canary
+    spec:
+      containers:
+        - name: chatbot
+          image: devops-chatbot:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: APP_VERSION
+              value: "1.0.0"
+          envFrom:
+            - configMapRef:
+                name: chatbot-config
+            - secretRef:
+                name: chatbot-secret
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "300m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+  strategy:
+    canary:
+      stableService: chatbot-stable
+      canaryService: chatbot-canary
+      trafficRouting:
+        nginx:
+          stableIngress: chatbot-canary-ingress
+      analysis:
+        templates:
+          - templateName: success-rate
+        startingStep: 1
+        args:
+          - name: version
+            value: "2.0.0"
+      steps:
+        - setWeight: 10
+        - pause:
+            duration: 120
+        - setWeight: 25
+        - pause:
+            duration: 120
+        - setWeight: 50
+        - pause:
+            duration: 120
+        - setWeight: 100

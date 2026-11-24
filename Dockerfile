@@ -12,6 +12,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Build-time application version (v1 / v2 for deployment labs).
+# Kept after the dependency layer so changing the version reuses the pip cache.
+ARG APP_VERSION=1.0.0
+ENV APP_VERSION=${APP_VERSION}
+
 # Copy application files
 COPY app.py .
 COPY .env.example .

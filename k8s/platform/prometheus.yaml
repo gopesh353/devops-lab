@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 5s
+
+    scrape_configs:
+      # Blue-green active and preview Services. Argo Rollouts points these
+      # Services at the pods of the selected ReplicaSet.
+      - job_name: "chatbot-active"
+        metrics_path: /metrics
+        static_configs:
+          - targets: ["chatbot-active.chatbot.svc.cluster.local:8000"]
+            labels:
+              slot: "bluegreen-active"
+
+      - job_name: "chatbot-preview"
+        metrics_path: /metrics
+        static_configs:
+          - targets: ["chatbot-preview.chatbot.svc.cluster.local:8000"]
+            labels:
+              slot: "bluegreen-preview"
+
+      # Canary stable and canary Services used by the AnalysisTemplate.
+      - job_name: "chatbot-stable"
+        metrics_path: /metrics
+        static_configs:
+          - targets: ["chatbot-stable.chatbot-canary.svc.cluster.local:8000"]
+            labels:
+              slot: "canary-stable"
+
+      - job_name: "chatbot-canary"
+        metrics_path: /metrics
+        static_configs:
+          - targets: ["chatbot-canary.chatbot-canary.svc.cluster.local:8000"]
+            labels:
+              slot: "canary"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time=1d
+          ports:
+            - name: http
+              containerPort: 9090
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "300m"
+              memory: "256Mi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: data
+              mountPath: /prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090

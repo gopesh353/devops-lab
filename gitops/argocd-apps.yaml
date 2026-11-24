@@ -1,0 +1,48 @@
+# Argo CD watches Git, not a local directory. During the lab a local bare
+# mirror is served over HTTP, so local commits are visible without pushing.
+#
+# Production equivalent:
+#   repoURL: https://github.com/gopesh353/devops-lab.git
+#
+# Refresh the mirror with: scripts/lab4_platform.sh git-mirror
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: chatbot-bluegreen
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: http://host.minikube.internal:9418/devops-lab.git
+    targetRevision: main
+    path: k8s/gitops/bluegreen
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: chatbot
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: chatbot-canary
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: http://host.minikube.internal:9418/devops-lab.git
+    targetRevision: main
+    path: k8s/gitops/canary
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: chatbot-canary
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
