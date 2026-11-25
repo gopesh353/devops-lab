@@ -1,0 +1,6 @@
+{
+  "status": "healthy",
+  "service": "fastapi-gemini-chatbot",
+  "version": "2.0.0",
+  "hostname": "chatbot-b5977c8db-22z7c"
+}

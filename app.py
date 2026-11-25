@@ -1,5 +1,8 @@
+import json
+import logging
 import os
 import socket
+from datetime import datetime, timezone
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
@@ -24,12 +27,19 @@ except ImportError:
 
 APP_VERSION = os.getenv("APP_VERSION", "1.0.0")
 
+logger = logging.getLogger("chatbot")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+
 app = FastAPI(title="Gemini AI Chatbot", version=APP_VERSION)
 
 
 @app.middleware("http")
 async def observability_middleware(request, call_next):
-    """Attach a version header and count every request for canary analysis."""
+    """Attach a version header, count requests, and emit structured JSON logs."""
     response = await call_next(request)
     response.headers["X-App-Version"] = APP_VERSION
     if HAS_PROMETHEUS and request.url.path != "/metrics":
@@ -38,6 +48,15 @@ async def observability_middleware(request, call_next):
             status=str(response.status_code),
             version=APP_VERSION
         ).inc()
+    if request.url.path != "/metrics":
+        logger.info(json.dumps({
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": "INFO",
+            "method": request.method,
+            "path": request.url.path,
+            "status": response.status_code,
+            "version": APP_VERSION,
+        }))
     return response
 
 # In-Memory Feature Flags (Question 6)
@@ -305,4 +324,4 @@ def chat(request: ChatRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app:app", host=os.getenv("APP_HOST", "127.0.0.1"), port=8000, reload=True)

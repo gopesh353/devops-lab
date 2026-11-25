@@ -1,0 +1,7 @@
+backup_file=/home/cosmos/github/devops-lab/backups/chatbot-20261125-011558.yaml
+backup_time=2026-11-24T19:45:58Z
+disaster_time=2026-11-24T19:46:58Z
+recovered_time=2026-11-24T19:47:21Z
+rto_seconds=23
+rpo_seconds=60
+traffic_served_from=chatbot-dr (same NodePort 30090)

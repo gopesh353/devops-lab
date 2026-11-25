@@ -16,6 +16,7 @@ pipeline {
 
     environment {
         APP_PORT = '8010'
+        FAIL_DEMO = "${params.FAIL_DEMO}"
     }
 
     stages {
@@ -66,12 +67,22 @@ pipeline {
             }
         }
 
+        stage('Security Scan (SAST)') {
+            steps {
+                echo '=== STAGE 4: BANDIT SAST GATE ==='
+                sh '''
+                    . .venv/bin/activate
+                    bandit -r app.py -ll
+                '''
+            }
+        }
+
         stage('Vault Secret Check') {
             when {
                 expression { params.RUN_VAULT_DEMO }
             }
             steps {
-                echo '=== STAGE 4: MASKED SECRET HANDLING ==='
+                echo '=== STAGE 5: MASKED SECRET HANDLING ==='
                 withCredentials([string(credentialsId: 'vault-token', variable: 'VAULT_TOKEN')]) {
                     sh '''
                         . .venv/bin/activate

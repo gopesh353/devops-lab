@@ -1,0 +1,5 @@
+{"timestamp": "2026-11-25T15:03:25.584593+00:00", "level": "INFO", "method": "GET", "path": "/health", "status": 200, "version": "1.0.0"}
+{"timestamp": "2026-11-25T15:03:26.019319+00:00", "level": "INFO", "method": "GET", "path": "/health", "status": 200, "version": "1.0.0"}
+{"timestamp": "2026-11-25T15:03:26.025849+00:00", "level": "INFO", "method": "GET", "path": "/", "status": 200, "version": "1.0.0"}
+{"timestamp": "2026-11-25T15:03:26.030844+00:00", "level": "INFO", "method": "GET", "path": "/api/features", "status": 200, "version": "1.0.0"}
+{"timestamp": "2026-11-25T15:03:26.044261+00:00", "level": "INFO", "method": "POST", "path": "/chat", "status": 400, "version": "1.0.0"}
